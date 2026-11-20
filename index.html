@@ -6,6 +6,7 @@
 <title>PitchPulse — Live Football Analytics</title>
 <meta name="description" content="PitchPulse — live football scores, standings, player analytics, club hubs, transfers and injuries in one cyberpunk dashboard.">
 <meta name="theme-color" content="#04060c">
+<meta name="robots" content="index,follow">
 <meta name="color-scheme" content="dark">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -115,12 +116,10 @@
       <div class="relative">
         <button id="bell-btn" type="button" aria-label="Notifications" aria-haspopup="true" class="relative grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 text-cyan-200 transition hover:border-cyan-400/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400">
           <svg viewBox="0 0 24 24" class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1112 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 004 0"/></svg>
-          <span id="bell-badge" class="absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-fuchsia-500 px-1 text-[10px] font-bold text-white shadow-[0_0_10px_#d946ef]">3</span>
+          <span id="bell-badge" class="hidden absolute -right-1 -top-1 grid h-5 min-w-5 place-items-center rounded-full bg-fuchsia-500 px-1 text-[10px] font-bold text-white shadow-[0_0_10px_#d946ef]">0</span>
         </button>
         <ul id="bell-menu" class="absolute right-0 top-full z-50 mt-2 hidden w-72 space-y-1 rounded-2xl border border-white/10 bg-[#080c18]/95 p-2 text-xs backdrop-blur-2xl">
-          <li class="rounded-xl bg-white/5 p-3"><span class="text-cyan-300">Goal</span> — Real Madrid 2:1 Barcelona</li>
-          <li class="rounded-xl bg-white/5 p-3"><span class="text-amber-300">Injury</span> — Squad update posted</li>
-          <li class="rounded-xl bg-white/5 p-3"><span class="text-emerald-300">Transfer</span> — New rumour tracked</li>
+          <li class="rounded-xl bg-white/5 p-3 text-slate-400">No verified notifications yet.</li>
         </ul>
       </div>
       <button class="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/5 font-['Chakra_Petch'] text-sm font-semibold text-cyan-200 transition hover:border-cyan-400/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400" aria-label="Account">ES</button>
@@ -279,7 +278,7 @@
   <div><button type="button" data-back="matches" class="inline-flex items-center gap-2 rounded-full border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-sm font-medium text-cyan-200 shadow-[0_0_20px_rgba(34,211,238,0.2)] transition hover:bg-cyan-400/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400">← Back to All Matches</button><p id="md-note" class="mt-3 hidden rounded-2xl border border-amber-300/30 bg-amber-300/10 px-4 py-2 text-xs text-amber-200"></p></div>
   <section aria-label="Live matches" class="flex flex-col gap-4 lg:flex-row lg:items-stretch">
     <div id="switcher" class="grid flex-1 gap-3 md:grid-cols-3"></div>
-    <button id="sim-btn" type="button" class="rounded-2xl border border-violet-400/40 bg-violet-500/15 px-5 py-3 text-sm font-medium text-violet-200 shadow-[0_0_24px_rgba(139,92,246,0.25)] transition hover:bg-violet-500/25 focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-400">Simulate Live Event<br class="hidden lg:block"> (Goal/VAR/Card)</button>
+    <p class="rounded-2xl border border-amber-300/30 bg-amber-300/10 px-5 py-3 text-sm text-amber-200">Live match events are shown only when supplied by the data provider. Simulation is disabled.</p>
   </section>
   <div class="grid gap-6 lg:grid-cols-12">
     <div class="min-w-0 space-y-6 lg:col-span-4">
@@ -323,7 +322,7 @@
 <main id="view-transfers" class="mx-auto hidden max-w-[1500px] space-y-5 px-4 py-6 sm:px-6">
   <div>
     <h1 class="font-['Chakra_Petch'] text-2xl font-bold text-white">Transfers &amp; News</h1>
-    <p class="text-sm text-slate-400">Live ESPN football news, transfer updates and injury reports.</p>
+    <p class="text-sm text-slate-400">ESPN football news feed. Transfer/injury tabs are keyword-based filters, not verified transaction or medical records.</p>
   </div>
   <div class="flex flex-wrap gap-2" id="tf-lg-pills" role="group" aria-label="League filter"></div>
   <div class="flex flex-wrap gap-2" id="tf-cat-pills" role="group" aria-label="Category filter"></div>
@@ -331,7 +330,7 @@
   <ul id="tf-list" class="grid gap-4 md:grid-cols-2"></ul>
 </main>
 
-<footer class="px-4 pb-8 text-center text-xs text-slate-600">PitchPulse prototype · illustrative data, not official statistics</footer>
+<footer class="mx-auto max-w-[1100px] px-4 pb-8 text-center text-xs leading-relaxed text-slate-500">PitchPulse is an independent interface, not an official league or club product. Confirmed fixture, roster and article fields are fetched from ESPN endpoints when available. Built-in historical player/club data, fallback tables, generated match details and inferred news categories are not official live data. If a provider fails, the site does not fabricate replacement fixtures. Data availability and freshness are shown in the relevant section.</footer>
 
 <script>
 /* Shared club-crest helper: official ESPN CDN crests with graceful fallback.
@@ -465,7 +464,8 @@ const fmt = (n) => n.toLocaleString('en-US');
 const state = { id:'messi', cmp:'', mode:'club' };
 
 function ageOf(p) {
-  const b = new Date(p.dob), n = new Date();
+  if (!p || !p.dob || !/^\d{4}-\d{2}-\d{2}$/.test(p.dob)) return null;
+  const b = new Date(p.dob + 'T12:00:00'), n = new Date();
   let a = n.getFullYear() - b.getFullYear();
   if (n < new Date(n.getFullYear(), b.getMonth(), b.getDate())) a--;
   return a;
@@ -538,9 +538,9 @@ function renderBio(p) {
     : `<span class="mt-3 inline-flex items-center gap-2 rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1 text-xs font-medium text-amber-200"><span class="h-1.5 w-1.5 rounded-full bg-amber-300"></span>Retired (${p.retired})</span>`;
   const ring = active ? 'bg-[conic-gradient(from_180deg,#22d3ee,#8b5cf6,#d946ef,#22d3ee)] shadow-[0_0_50px_rgba(139,92,246,0.55)]' : 'bg-[conic-gradient(from_180deg,#fcd34d,#64748b,#fcd34d)] shadow-[0_0_40px_rgba(252,211,77,0.3)]';
   const cell = (k, v, extra = '', col = 'text-white') => `<div class="${extra} rounded-2xl border border-white/10 bg-black/30 p-3"><dt class="text-xs text-slate-500">${k}</dt><dd class="mt-1 font-['Chakra_Petch'] text-base font-semibold ${col}">${v}</dd></div>`;
-  const fit = active
+  const fit = active && p.fitness != null
     ? `<div class="flex justify-between text-xs text-slate-400"><span>Match fitness</span><span class="text-cyan-300">${p.fitness}%</span></div><div class="mt-2 h-2 overflow-hidden rounded-full bg-white/10"><div class="h-full rounded-full bg-gradient-to-r from-cyan-400 to-violet-500 shadow-[0_0_12px_rgba(34,211,238,0.8)]" style="width:${p.fitness}%"></div></div>`
-    : `<div class="flex justify-between text-xs text-slate-400"><span>Match fitness</span><span class="text-slate-500">N/A – Retired</span></div><div class="mt-2 h-2 rounded-full bg-white/5"></div>`;
+    : `<div class="flex justify-between text-xs text-slate-400"><span>Match fitness</span><span class="text-slate-500">N/A — no verified fitness feed</span></div><div class="mt-2 h-2 rounded-full bg-white/5"></div>`;
   $('bio').innerHTML = `<div class="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-300 to-transparent"></div>
     <h2 class="font-['Chakra_Petch'] text-sm font-semibold tracking-widest text-cyan-300/80">Bio-signature</h2>
     <div class="mt-6 flex flex-col items-center text-center">
@@ -550,7 +550,7 @@ function renderBio(p) {
     </div>
     <dl class="mt-6 grid grid-cols-2 gap-3 text-sm">
       ${cell('Date of birth', p.born, 'col-span-2')}${cell('Place of birth', p.place, 'col-span-2')}
-      ${cell('Age', ageOf(p) + (active ? '' : ' (today)'))}${cell('Shirt', p.num, '', 'text-cyan-300')}
+      ${cell('Age', ageOf(p) == null ? 'Unknown' : ageOf(p) + (active ? '' : ' (today)'))}${cell('Shirt', p.num, '', 'text-cyan-300')}
       ${cell('Nationality', p.nat)}${cell('Height', p.height)}
       ${cell('Preferred foot', p.foot)}${cell(p.valueLabel, p.value, '', 'text-emerald-300')}
     </dl>
@@ -561,6 +561,11 @@ function renderBio(p) {
 // ---- KPI cards ----
 function renderKPIs(p) {
   const k = p.kpi;
+  if (p.statsUnavailable) {
+    $('kpis').innerHTML = ['Appearances','Goals','Assists','Trophies','xG','xA','Pass accuracy','Discipline'].map((label) => `<div class="rounded-2xl border border-white/10 bg-white/[0.04] p-4"><p class="text-xs text-slate-400">${label}</p><p class="mt-1 font-['Chakra_Petch'] text-2xl font-bold text-slate-500">—</p></div>`).join('');
+    $('career-span').textContent = 'Verified career statistics are not available from the current data sources.';
+    return;
+  }
   const card = (label, val, c, rgb) => `<div class="rounded-2xl border border-${c}-400/20 bg-${c}-400/[0.06] p-4 shadow-[0_0_24px_rgba(${rgb},0.12)]"><p class="text-xs text-slate-400">${label}${/^(xG|xA|Pass accuracy)$/.test(label) ? ' <span class="text-[9px] uppercase text-slate-500" title="Modelled estimate">est.</span>' : ''}</p><p class="mt-1 font-['Chakra_Petch'] text-2xl font-bold text-white sm:text-3xl">${val}</p></div>`;
   $('kpis').innerHTML =
     card('Appearances', fmt(k.app), 'cyan', '34,211,238') + card('Goals', fmt(k.g), 'violet', '139,92,246') +
@@ -575,6 +580,7 @@ function renderKPIs(p) {
 
 // ---- Club / Competition breakdown ----
 function renderBreakdown(p) {
+  if (p.statsUnavailable) { $('breakdown-title').textContent = 'Career breakdown'; $('breakdown').innerHTML = '<li class="rounded-xl border border-dashed border-white/10 p-4 text-sm text-slate-400">No verified career breakdown is available for this player.</li>'; return; }
   const rows = state.mode === 'club' ? p.clubs : p.comps;
   const max = Math.max(...rows.map((r) => r[2]));
   const cols = [['from-cyan-400 to-blue-500','text-cyan-300'],['from-violet-400 to-fuchsia-500','text-violet-300'],['from-fuchsia-400 to-pink-500','text-fuchsia-300'],['from-amber-300 to-orange-500','text-amber-300'],['from-emerald-300 to-teal-500','text-emerald-300']];
@@ -612,6 +618,7 @@ function ds(p, col, fill) {
   return { label:p.name, data:p.radar, backgroundColor:fill, borderColor:col, borderWidth:2, pointBackgroundColor:'#04060c', pointBorderColor:col, pointBorderWidth:2, pointRadius:5, pointHoverRadius:7 };
 }
 function renderRadar(p, c) {
+  if (p.statsUnavailable || (c && c.statsUnavailable)) { radar.data.datasets = []; radar.update(); $('cmp-legend').textContent = 'Radar comparison unavailable: verified player metrics are not supplied.'; return; }
   radar.data.datasets = [ds(p, '#22d3ee', 'rgba(34,211,238,0.18)')];
   if (c) radar.data.datasets.push(ds(c, '#d946ef', 'rgba(217,70,239,0.16)'));
   radar.update();
@@ -621,6 +628,7 @@ function renderRadar(p, c) {
 
 // ---- Percentiles (single or dual bars) ----
 function renderPct(p, c) {
+  if (p.statsUnavailable || (c && c.statsUnavailable)) { $('pct').innerHTML = '<li class="text-sm text-slate-400">Verified percentile data is not available.</li>'; return; }
   $('pct').innerHTML = PCT_LABELS.map((l, i) => {
     const bar = (v, col, glow) => `<div class="mt-1.5 h-1.5 rounded-full bg-white/10"><div class="h-full rounded-full ${col} transition-all duration-700" style="width:${v}%;box-shadow:0 0 10px ${glow}"></div></div>`;
     const val = c ? `<span><span class="text-cyan-300">${p.pct[i]}</span> <span class="text-slate-600">/</span> <span class="text-fuchsia-300">${c.pct[i]}</span></span>` : `<span class="text-cyan-300">${p.pct[i]}</span>`;
@@ -999,12 +1007,7 @@ renderAll();
   $('pitch-card').addEventListener('mouseover', (e) => { const sh = e.target.closest('[data-shot]'); if (sh) showShot(sh); });
   $('pitch-card').addEventListener('focusin', (e) => { const sh = e.target.closest('[data-shot]'); if (sh) showShot(sh); });
   $('feed-pills').addEventListener('click', (e) => { const b = e.target.closest('[data-f]'); if (b) { st.feed = b.dataset.f; renderPills(); renderFeed(); } });
-  $('sim-btn').addEventListener('click', () => {
-    const m = M();
-    if (m.fin || m.hold) { toast('slate', 'NO SIMULATION', m.tm[0][1] + ' vs ' + m.tm[1][1], 'Pick a live match to simulate an event.'); return; }
-    addEvent(m, pick(['goal', 'var', 'yellow', 'red', 'sub', 'goal']), true);
-    refresh();
-  });
+  // Public mode: synthetic match-event generation is intentionally disabled.
 
   window.PP2 = { select:(id) => { st.sel = id; renderAll(); }, sel:() => st.sel }; // lets the Matches Hub open any match
   renderAll();
@@ -1483,7 +1486,8 @@ renderAll();
   function setApi(s) {
     API.state = s;
     const [dot, txt, cls] = s === 'ok' ? ['bg-emerald-400 shadow-[0_0_8px_#34d399]', 'Live API Connected', 'text-emerald-300']
-      : s === 'off' ? ['bg-amber-300 shadow-[0_0_8px_#fcd34d]', 'Offline · built-in data', 'text-amber-200'] : ['bg-slate-400 animate-pulse', 'Connecting to API…', 'text-slate-400'];
+      : s === 'partial' ? ['bg-amber-300 shadow-[0_0_8px_#fcd34d]', 'Some competitions unavailable', 'text-amber-200']
+      : s === 'off' ? ['bg-amber-300 shadow-[0_0_8px_#fcd34d]', 'Live data unavailable · demo data disabled', 'text-amber-200'] : ['bg-slate-400 animate-pulse', 'Connecting to API…', 'text-slate-400'];
     $5('api-status').innerHTML = `<span class="h-2 w-2 shrink-0 rounded-full ${dot}"></span><span class="${cls}">${txt}</span>`;
   }
 
@@ -1557,23 +1561,11 @@ renderAll();
       if (r.status === 'fulfilled' && r.value && Array.isArray(r.value.events)) { ok++; const got = parseESPN(r.value, id); if (got.length) rows.push(...got); else empty.push(id); }
     });
     M5.jump = null;
-    if (ok) {
-      /* ESPN is reachable → real data only. A league with no games on this exact date (international break, midweek) shows
-         ESPN's own nearest matchday (scoreboard without ?dates=) with the real date on each row. */
-      const near = await Promise.allSettled(empty.map((id) => jget(`https://site.api.espn.com/apis/site/v2/sports/soccer/${LGS.find((l) => l[0] === id)[3]}/scoreboard`)));
-      if (tok !== M5.tok) return;
-      near.forEach((r, i) => {
-        if (r.status !== 'fulfilled' || !r.value || !Array.isArray(r.value.events)) return;
-        const got = parseESPN(r.value, empty[i]).map((x) => ({ ...x, near:true }));
-        if (d === todayStr()) rows.push(...got);
-        else { const day = got.map((x) => ymd(new Date(x.t))).sort().find((x) => x !== d); if (day && (!M5.jump || day < M5.jump)) M5.jump = day; }
-      });
-    } else {                                   // completely offline: clearly tagged demo fixtures so the app is still usable
-      LGS.forEach(([id]) => rows.push(...gen(id, d)));
-      if (d === todayStr()) rows.push(...featured());
-    }
+    // Never substitute another date or manufacture fixtures. An empty response means no
+    // confirmed fixtures were returned for the selected date; an API failure stays empty.
+    if (!ok) M5.jump = null;
     M5.rows = rows; M5.loading = false;
-    if (ok) setApi('ok'); else if (API.state !== 'ok') setApi('off');
+    if (ok === LGS.length) setApi('ok'); else if (ok > 0) setApi('partial'); else setApi('off');
     renderList();
   }
 
@@ -1627,11 +1619,11 @@ renderAll();
       return `<section class="overflow-hidden rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur-2xl"><div class="flex items-center justify-between gap-3 px-4 py-3">
         <button type="button" data-col="${l[0]}" aria-expanded="${!closed}" class="flex min-w-0 flex-1 items-center gap-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-cyan-400">
           <span class="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-cyan-400/30 bg-cyan-400/10 font-['Chakra_Petch'] text-[11px] font-bold text-cyan-200">${l[4]}</span>
-          <span class="min-w-0"><span class="block truncate font-medium text-white">${l[1]}</span><span class="block text-xs text-slate-500">${l[5]} ${l[2]} · ${rows.length} match${rows.length === 1 ? '' : 'es'}${rows.some((r) => r.near) ? ' · no games on this date, showing the nearest matchday' : ''}</span></span>
+          <span class="min-w-0"><span class="block truncate font-medium text-white">${l[1]}</span><span class="block text-xs text-slate-500">${l[5]} ${l[2]} · ${rows.length} match${rows.length === 1 ? '' : 'es'}</span></span>
           <svg viewBox="0 0 24 24" class="ml-auto h-4 w-4 shrink-0 text-slate-400 transition ${closed ? '-rotate-90' : ''}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
         ${HAS_STD.includes(l[0]) ? `<button type="button" data-std="${l[0]}" class="shrink-0 text-xs text-cyan-300 underline underline-offset-2 hover:text-white">Standings</button>` : ''}</div>
         <ul class="divide-y divide-white/5 border-t border-white/5 ${closed ? 'hidden' : ''}">${rows.map(rowHTML).join('')}</ul></section>`;
-    }).join('') || `<div class="rounded-3xl border border-dashed border-white/10 p-10 text-center text-sm text-slate-500">${M5.status === 'favs' ? 'Star matches (or pick a favorite club) to see them here.' : 'No matches for this filter on this date.'}${M5.jump && M5.jump !== M5.date ? `<p class="mt-4"><button type="button" data-ds="${M5.jump}" class="rounded-full border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-xs font-medium text-cyan-200 hover:bg-cyan-400/20">Jump to the next matchday (${new Date(M5.jump + 'T12:00:00').toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' })}) →</button></p>` : ''}</div>`;
+    }).join('') || `<div class="rounded-3xl border border-dashed border-white/10 p-10 text-center text-sm text-slate-500">${M5.status === 'favs' ? 'Star matches (or pick a favorite club) to see them here.' : (API.state === 'off' ? 'Live fixture provider is unavailable. No demo fixtures are shown.' : 'No confirmed fixtures were returned for this date and filter.')}${M5.jump && M5.jump !== M5.date ? `<p class="mt-4"><button type="button" data-ds="${M5.jump}" class="rounded-full border border-cyan-400/40 bg-cyan-400/10 px-4 py-2 text-xs font-medium text-cyan-200 hover:bg-cyan-400/20">Jump to the next matchday (${new Date(M5.jump + 'T12:00:00').toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' })}) →</button></p>` : ''}</div>`;
   }
 
   /* ---- match detail (master → detail) ---- */
@@ -1747,7 +1739,7 @@ renderAll();
   function openMatch(r) {
     if (r.eng) { PP2.select(r.eng); $5('md-note').className = 'hidden'; showView('live'); return; }
     const m = genMatch(r); window.liveMatches.x = m; PP2.select('x');
-    setNote(r.st === 'sched' ? 'Projected lineups, head-to-head and heat zones. Live stats and the shot map fill in once the match starts.' : 'Lineups, stats, heatmap and shot map are modelled from the teams and the scoreline' + (r.src === 'espn' ? '; upgrading with the ESPN match summary when it responds.' : '.'));
+    setNote('Only the score, teams, kickoff/status and venue are sourced from the ESPN fixture. Lineups, ratings, statistics, heatmap, shot map and head-to-head are NOT verified live data and are hidden from production use until a trusted match-summary feed supplies them.');
     showView('live');
     if (r.src !== 'espn') return;
     espnSummary(r).then((o) => {
@@ -1757,7 +1749,7 @@ renderAll();
       if (o.st) { Object.entries(o.st).forEach(([k, v]) => { m.st[k] = v; }); used = true; }
       if (o.ev) { m.ev = o.ev; used = true; }
       if (o.venue) m.venue = o.venue; if (o.ref) m.ref = o.ref;
-      if (used) { setNote('Lineups, stats and events from the ESPN match summary; heatmap and shot map are modelled.'); PP2.select('x'); }
+      if (used) { setNote('ESPN match-summary fields loaded. Heatmap and shot map remain modelled and must not be treated as official tracking data.'); PP2.select('x'); }
     }).catch(() => { /* keep the model */ });
   }
 
@@ -1910,17 +1902,17 @@ renderAll();
   function genProfile(p) { // bio from TheSportsDB/Wikipedia, analytics modelled from a seeded generator
     const id = 'api_' + p.idPlayer;
     if (DB[id]) return id;
-    const name = p.strPlayer || 'Unknown', pos = (p.strPosition || '') + ' ' + (p._desc || ''), k = (a, b, s) => a + hs(name + s) % (b - a + 1);
+    const name = p.strPlayer || 'Unknown', pos = (p.strPosition || '') + ' ' + (p._desc || '');
     const gk = /goalkeeper/i.test(pos), def = /defen|back/i.test(pos), mid = /midfield/i.test(pos), code = gk ? 'GK' : def ? 'CB' : mid ? 'CM' : 'ST';
-    const app = k(150, 700, 'a'), g = gk ? 0 : code === 'ST' ? k(40, 300, 'g') : mid ? k(10, 90, 'g') : k(2, 40, 'g'), a = gk ? 0 : code === 'ST' ? k(10, 120, 'x') : mid ? k(30, 160, 'x') : k(5, 60, 'x'), team = p.strTeam || '—';
-    const okDob = /^\d{4}-\d{2}-\d{2}$/.test(p.dateBorn || '') && p.dateBorn !== '0000-00-00', dob = okDob ? p.dateBorn : '1995-06-15';
+    // Search providers do not supply verified career totals here. Keep unavailable values null;
+    // never generate plausible-looking statistics from a hash or random seed.
+    const app = null, g = null, a = null, team = p.strTeam || '—';
+    const okDob = /^\d{4}-\d{2}-\d{2}$/.test(p.dateBorn || '') && p.dateBorn !== '0000-00-00', dob = okDob ? p.dateBorn : '';
     DB[id] = { api:1, photo:String(p._photo || p.strCutout || p.strThumb || '').replace(/"/g, '%22'), name, init:name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase(), status:/retired/i.test(p.strStatus || '') ? 'retired' : 'active', retired:'—', dob,
       born:okDob ? parseYmd(dob).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }) : 'Unknown', place:p.strBirthLocation || '—', nat:p.strNationality || '—', height:p.strHeight || '—', foot:p.strSide || '—', num:p.strNumber ? '#' + p.strNumber : '—',
-      club:team, value:'—', valueLabel:'Market value', fitness:90, pos:{ p:code, s:[] }, span:'—',
-      kpi:{ app, g, a, tr:k(0, 15, 't'), xg:+(g * .9).toFixed(1), xa:+(a * .85).toFixed(1), pa:k(70, 90, 'p'), yc:k(5, 60, 'y'), rc:k(0, 4, 'r') },
-      clubs:[[team, app, g, a]], comps:[['Domestic League', Math.round(app * .7), Math.round(g * .7), Math.round(a * .7)], ['International', app - Math.round(app * .7), g - Math.round(g * .7), a - Math.round(a * .7)]],
-      radar:[k(35, 92, 'r1'), k(30, 90, 'r2'), k(35, 92, 'r3'), k(40, 90, 'r4'), k(20, 80, 'r5'), k(30, 85, 'r6')], pct:[k(30, 95, 'c1'), k(30, 95, 'c2'), k(30, 95, 'c3'), k(30, 95, 'c4'), k(15, 90, 'c5')],
-      timeline:[[String(new Date().getFullYear()), '—', team, 'Current club', 'P']], trophies:[], awards:[] };
+      club:team, value:'—', valueLabel:'Market value', fitness:null, pos:{ p:code, s:[] }, span:'—',
+      kpi:{ app:null, g:null, a:null, tr:null, xg:null, xa:null, pa:null, yc:null, rc:null },
+      clubs:[], comps:[], radar:[], pct:[], timeline:[], trophies:[], awards:[], statsUnavailable:true };
     return id;
   }
   /* ---- club crests: learn authoritative ESPN logos for every club in the five leagues ---- */
@@ -1938,8 +1930,10 @@ renderAll();
     _choose(id); ensurePhoto(id);
     const n = $5('pf-note'), p = DB[id];
     if (n) {
-      n.classList.toggle('hidden', !(p && p.api));
-      n.textContent = 'Bio details come from TheSportsDB. Career stats, radar and percentiles on this profile are modelled estimates, and trophies are not available.';
+      n.classList.toggle('hidden', !p);
+      n.textContent = p && p.api
+        ? 'Basic bio fields may come from TheSportsDB/Wikipedia. Career totals, radar, percentiles, trophies and generated profile metrics are unavailable or modelled — not official statistics.'
+        : 'Important: this profile contains a built-in historical snapshot. Career totals, awards, market values, fitness, radar and percentiles are not live-verified. Do not publish them as official statistics.';
     }
   };
   $5('view-players').addEventListener('click', (e) => {
@@ -3250,7 +3244,7 @@ renderAll();
       list.innerHTML = '';
       return;
     }
-    status.textContent = `${filtered.length} live articles · ESPN`;
+    status.textContent = `${filtered.length} articles · ESPN · category inferred from headline/description`;
     list.innerHTML = filtered.slice(0, 24).map((a) => {
       const img = (a.images && a.images[0] && (a.images[0].url || a.images[0].href)) || '';
       let href = a.links?.web?.href || a.links?.mobile?.href || a.link || '#';
