@@ -2631,14 +2631,9 @@ renderAll();
      1. LIVE LEADERBOARDS (ESPN) — top scorers / assists / clean sheets, no estimated numbers
      ===================================================================== */
   const SLUG = { pl:'eng.1', la:'esp.1', sa:'ita.1', bl:'ger.1', ucl:'uefa.champions' };
-  const YEAR = { 24:2024, 23:2023, 22:2022 };
+  const YEAR = { 25:2026, 24:2024, 23:2023, 22:2022 };
   const idOf = (lg) => Object.keys(P3.LG).find((k) => P3.LG[k] === lg || P3.LG[k].name === (lg && lg.name));
-  const qs = (s) => (s === '25' ? '' : '?season=' + YEAR[s]);
-  const CANDS = [                                              // tried in order until one returns usable leaders
-    (slug, s) => `https://site.api.espn.com/apis/site/v2/sports/soccer/${slug}/leaders${qs(s)}`,
-    (slug, s) => `https://site.web.api.espn.com/apis/site/v3/sports/soccer/${slug}/leaders${qs(s)}`,
-    (slug, s) => `https://site.web.api.espn.com/apis/common/v3/sports/soccer/${slug}/statistics/byathlete?region=us&lang=en&contentorigin=espn&isqualified=true&limit=100&page=1${s === '25' ? '' : '&season=' + YEAR[s]}`
-  ];
+  const forceHttps = (u) => String(u || '').replace(/^http:\/\//i, 'https://');
   const HIST = {                                               // real Golden Boot winners of past seasons (name, club, goals)
     pl:{ 24:['Mohamed Salah', 'Liverpool', 29], 23:['Erling Haaland', 'Man City', 27], 22:['Erling Haaland', 'Man City', 36] },
     la:{ 24:['Kylian Mbappé', 'Real Madrid', 31], 23:['Artem Dovbyk', 'Girona', 24], 22:['Robert Lewandowski', 'Barcelona', 23] },
@@ -2646,54 +2641,70 @@ renderAll();
     bl:{ 24:['Harry Kane', 'Bayern', 26], 23:['Harry Kane', 'Bayern', 36], 22:['Niclas Füllkrug', 'Werder Bremen', 16] },
     ucl:{ 24:['Raphinha', 'Barcelona', 13], 23:['Harry Kane', 'Bayern', 8], 22:['Erling Haaland', 'Man City', 12] }
   };
-  function findCats(o, d = 0, out = []) {
-    if (!o || typeof o !== 'object' || d > 5) return out;
-    if (Array.isArray(o)) { o.forEach((x) => findCats(x, d + 1, out)); return out; }
-    if (Array.isArray(o.leaders) && o.leaders.length && (o.name || o.displayName)) out.push(o);
-    Object.values(o).forEach((v) => { if (v && typeof v === 'object') findCats(v, d + 1, out); });
-    return out;
-  }
-  function leaderRow(L) {
-    const a = L.athlete || {}, t = L.team || a.team || {}, name = a.displayName || a.fullName || a.shortName, val = Number(L.value != null ? L.value : parseFloat(L.displayValue));
+  /* Core API leaders: categories contain $ref for athlete/team that must be resolved (and forced to https). */
+  async function resolveLeaderEntry(L) {
+    const aRef = forceHttps(L.athlete && L.athlete.$ref), tRef = forceHttps(L.team && L.team.$ref);
+    const [aRes, tRes] = await Promise.allSettled([
+      aRef ? P5.jget(aRef, 6000) : Promise.resolve(null),
+      tRef ? P5.jget(tRef, 6000) : Promise.resolve(null)
+    ]);
+    const a = aRes.status === 'fulfilled' ? aRes.value : {}, t = tRes.status === 'fulfilled' ? tRes.value : {};
+    const name = a.displayName || a.fullName || a.shortName || '';
+    const val = Number(L.value != null ? L.value : parseFloat(L.displayValue));
     if (!name || isNaN(val)) return null;
-    PPcrest.learn(t);
-    const mp = (L.statistics || []).find((x) => /appearances|gamesPlayed/i.test(x.name || ''));
-    return { name, club:t.displayName || t.shortDisplayName || t.name || '', val, mp:mp ? Number(mp.value) : null };
+    if (t && (t.displayName || t.name)) PPcrest.learn(t);
+    const logo = (t.logos && t.logos[0] && t.logos[0].href) || '';
+    return { name, club: t.displayName || t.shortDisplayName || t.name || '', val, mp: null, logo };
   }
-  function fromLeaders(j) {
-    const out = { sc:[], as:[], gk:[] };
-    findCats(j).forEach((c) => {
-      const lab = (c.name || '') + ' ' + (c.displayName || '') + ' ' + (c.abbreviation || '');
-      const kind = /assist/i.test(lab) ? 'as' : /clean|shutout|shut-out/i.test(lab) ? 'gk' : /goal/i.test(lab) && !/against|conceded|allowed|save|per/i.test(lab) ? 'sc' : null;
-      if (kind && !out[kind].length) out[kind] = c.leaders.map(leaderRow).filter(Boolean).slice(0, 5);
-    });
+  async function fromCoreLeaders(j) {
+    const out = { sc: [], as: [], gk: [] };
+    const cats = j.categories || [];
+    const pickCat = (re) => cats.find((c) => re.test((c.name || '') + ' ' + (c.displayName || '') + ' ' + (c.abbreviation || '')));
+    const goalsCat = pickCat(/goalsLeaders|^goals$/i) || pickCat(/goal/i);
+    const assistsCat = pickCat(/assistsLeaders|^assists$/i) || pickCat(/assist/i);
+    const resolveTop = async (cat) => {
+      if (!cat || !Array.isArray(cat.leaders)) return [];
+      const top = cat.leaders.slice(0, 5);
+      const rows = await Promise.all(top.map(resolveLeaderEntry));
+      return rows.filter(Boolean);
+    };
+    out.sc = await resolveTop(goalsCat);
+    out.as = await resolveTop(assistsCat);
     return out;
   }
-  function fromByAthlete(j) {
-    const rows = (j.athletes || []).map((e) => {
-      const a = e.athlete || {}, f = {};
-      (e.categories || []).forEach((c) => (c.names || []).forEach((n, i) => { const v = c.values ? c.values[i] : c.totals ? parseFloat(c.totals[i]) : NaN; if (!isNaN(v) && f[n] == null) f[n] = v; }));
-      return { name:a.displayName || a.shortName, club:a.teamName || a.teamShortName || (a.team && a.team.displayName) || '', g:f.totalGoals ?? f.goals, a:f.goalAssists ?? f.assists, mp:f.appearances ?? f.gamesPlayed ?? null };
-    }).filter((r) => r.name);
-    const top = (k) => rows.filter((r) => r[k] > 0).sort((x, y) => y[k] - x[k]).slice(0, 5).map((r) => ({ name:r.name, club:r.club, val:r[k], mp:r.mp }));
-    return { sc:top('g'), as:top('a'), gk:[] };
-  }
-  const parseAny = (j) => { const a = fromLeaders(j); return a.sc.length || a.as.length ? a : fromByAthlete(j); };
   const LD = {};
+  function seasonYear(s) {
+    if (YEAR[s]) return YEAR[s];
+    // Prefer year from a live standings payload when available, else default 2026
+    try {
+      const live = window.PPlive && window.PPlive.has && window.PPlive.has(P3.LG[s === '25' ? (P3.S3 && P3.S3.lg) : null] || {}, '25');
+    } catch (e) { /* ignore */ }
+    return 2026;
+  }
   function load(id, s) {
     if (!SLUG[id] || s !== '25') return Promise.resolve(null);
     const k = id + ':' + s, L = LD[k];
     if (L && L.status === 'loading') return L.p;
     if (L && L.status === 'ok' && Date.now() - L.t < 300000) return Promise.resolve(L);
     if (L && L.status === 'err' && Date.now() - L.t < 30000) return Promise.resolve(L);
-    const rec = LD[k] = { status:'loading', t:Date.now() };
+    const rec = LD[k] = { status: 'loading', t: Date.now() };
+    const year = seasonYear(s);
+    const coreUrl = `https://sports.core.api.espn.com/v2/sports/soccer/leagues/${SLUG[id]}/seasons/${year}/types/1/leaders?limit=10&lang=en&region=us`;
     rec.p = (async () => {
       const errs = [];
-      for (const mk of CANDS) {
-        try { const d = parseAny(await P5.jget(mk(SLUG[id], s), 8000)); if (d.sc.length || d.as.length) { Object.assign(rec, { status:'ok', data:d, t:Date.now() }); return rec; } errs.push('no leaders in response'); }
-        catch (e) { errs.push(String((e && e.message) || e)); }
+      try {
+        const raw = await P5.jget(coreUrl, 9000);
+        const d = await fromCoreLeaders(raw);
+        if (d.sc.length || d.as.length) {
+          Object.assign(rec, { status: 'ok', data: d, t: Date.now() });
+          return rec;
+        }
+        errs.push('no leaders in response');
+      } catch (e) {
+        errs.push(String((e && e.message) || e));
       }
-      Object.assign(rec, { status:'err', err:[...new Set(errs)].join(' / '), t:Date.now() }); return rec;
+      Object.assign(rec, { status: 'err', err: [...new Set(errs)].join(' / '), t: Date.now() });
+      return rec;
     })().then((r) => { if (P3.S3.lg === id && P3.S3.s === s) P3.renderAll3(); return r; });
     return rec.p;
   }
@@ -2729,19 +2740,30 @@ renderAll();
   /* =====================================================================
      2. UNIVERSAL PLAYER SYNC — Wikidata (current club, DOB, height) + TheSportsDB (nationality, fallback) + Wikipedia (portrait)
      ===================================================================== */
-  const WD = 'https://www.wikidata.org/w/api.php?format=json&origin=*&';
+  const WD = 'https://www.wikidata.org/w/api.php?format=json&origin=*';
   async function wd(title) {
-    const j = await P5.jget(`${WD}action=wbgetentities&sites=enwiki&titles=${encodeURIComponent(title)}&props=claims&languages=en`, 8000);
+    // origin=* is required for browser CORS on Wikidata / MediaWiki APIs
+    const j = await P5.jget(`${WD}&action=wbgetentities&sites=enwiki&titles=${encodeURIComponent(title)}&props=claims&languages=en`, 8000);
     const ent = Object.values(j.entities || {}).find((e) => e && e.claims); if (!ent) throw new Error('no Wikidata entity');
     const C = ent.claims, val = (c) => c && c.mainsnak && c.mainsnak.datavalue && c.mainsnak.datavalue.value, out = {};
     const t = val((C.P569 || [])[0]); if (t && t.time) out.dob = t.time.replace(/^\+/, '').slice(0, 10);
     const h = val((C.P2048 || [])[0]); if (h && h.amount) { const a = parseFloat(h.amount); out.height = /Q11573$/.test(h.unit || '') || a < 3 ? Math.round(a * 100) : Math.round(a); }
-    const teams = (C.P54 || []).filter((c) => !(c.qualifiers && c.qualifiers.P582) && val(c) && val(c).id && c.rank !== 'deprecated')
-      .map((c) => ({ id:val(c).id, start:(c.qualifiers && c.qualifiers.P580 && c.qualifiers.P580[0].datavalue && c.qualifiers.P580[0].datavalue.value.time) || '' })).sort((a, b) => b.start.localeCompare(a.start));
+    // Current club = P54 claim with NO end-time qualifier (P582), not deprecated, not a national/youth side
+    const teams = (C.P54 || []).filter((c) => {
+      if (!val(c) || !val(c).id || c.rank === 'deprecated') return false;
+      if (c.qualifiers && c.qualifiers.P582) return false; // has end time → past club
+      return true;
+    }).map((c) => ({
+      id: val(c).id,
+      start: (c.qualifiers && c.qualifiers.P580 && c.qualifiers.P580[0].datavalue && c.qualifiers.P580[0].datavalue.value.time) || ''
+    })).sort((a, b) => b.start.localeCompare(a.start));
     if (teams.length) {
-      const ids = [...new Set(teams.map((x) => x.id))].slice(0, 6), lj = await P5.jget(`${WD}action=wbgetentities&ids=${ids.join('|')}&props=labels&languages=en`, 8000);
+      const ids = [...new Set(teams.map((x) => x.id))].slice(0, 8);
+      const lj = await P5.jget(`${WD}&action=wbgetentities&ids=${ids.join('|')}&props=labels&languages=en`, 8000);
       const label = (id) => (lj.entities && lj.entities[id] && lj.entities[id].labels && lj.entities[id].labels.en && lj.entities[id].labels.en.value) || '';
-      const pick = teams.map((x) => label(x.id)).find((l) => l && !/national|under-?\d|\bu-?\d{2}\b|olympic|reserve|youth|\bB\b$/i.test(l)); if (pick) out.club = pick;
+      const isNationalOrYouth = (l) => /national|under-?\d|\bu-?\d{2}\b|olympic|reserve|youth|\bB\b$|women'?s? national|selection/i.test(l || '');
+      const pick = teams.map((x) => label(x.id)).find((l) => l && !isNationalOrYouth(l));
+      if (pick) out.club = pick;
     }
     return out;
   }
@@ -2769,7 +2791,7 @@ renderAll();
     if (u.photo) { p.photo = u.photo; P5.setPhoto(id, u.photo); }
     p.live = { t, src:u.src || 'live' };
   }
-  const SK = 'pp:sync:v1';
+  const SK = 'pp_v9_sync';
   function afterSync() {
     Object.keys(DB).forEach((id) => { DB[id].valueLabel = DB[id].status === 'retired' ? 'Peak value (static)' : 'Est. market value (static)'; });
     P5.renderGrid();
